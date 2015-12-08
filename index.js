@@ -3,8 +3,27 @@ var merge = require('deepmerge')
 var through = require('through2')
 var browserify = require('browserify')
 var watchify = require('watchify')
+var prettyTime = require('pretty-hrtime')
 
 var cache = {}
+
+var log = {
+    start: function (file, status, opt) {
+        gutil.log(
+            status,
+            gutil.colors.magenta(file.relative),
+            opt.watch !== false ? '(watch mode)' : ''
+        )
+    },
+    end: function (file, status, opt, startAt) {
+        gutil.log(
+            status,
+            gutil.colors.magenta(file.relative),
+            'finished after',
+            prettyTime(process.hrtime(startAt))
+        )
+    }
+}
 
 module.exports = function(taskCallback) {
 
@@ -43,18 +62,20 @@ module.exports = function(taskCallback) {
             }
             var options = merge(opt, { entries:'./'+file.relative, basedir:file.base })
             var bundle = getBundle(file, options)
+            var startAt = process.hrtime()
+            var status;
             if (bundle.updateStatus) {
-                gutil.log(
-                    bundle.updateStatus === 'first' ? "Bundling" : "Rebundling",
-                    gutil.colors.magenta(file.relative),
-                    opt.watch !== false ? '(watch mode)':''
-                )
+                status = bundle.updateStatus === 'first' ? 'Bundling' : 'Rebundling'
+                log.start(file, status, opt)
                 file = file.clone()
                 delete bundle.updateStatus
                 file.contents = bundle.bundle()
                 // Wait until done or else streamify(uglify()) fails due to buffering
                 file.contents.on('error', callback)
-                file.contents.on('end', callback)
+                file.contents.on('end', function () {
+                  log.end(file, status, opt, startAt)
+                  callback()
+                })
                 this.push(file)
             } else {
                 callback()

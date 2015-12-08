@@ -26,6 +26,7 @@
   "dependencies": {
     "deepmerge": "^0.2.7",
     "gulp-util": "^3.0.4",
+    "pretty-hrtime": "^1.0.1",
     "through2": "^0.6.3"
   },
   "peerDependencies": {
